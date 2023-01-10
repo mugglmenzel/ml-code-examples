@@ -1,0 +1,4 @@
+workerPoolSpecs:
+  - machineSpec:
+      machineType: n1-standard-16
+    replicaCount: 1

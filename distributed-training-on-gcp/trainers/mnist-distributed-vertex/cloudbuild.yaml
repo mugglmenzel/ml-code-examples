@@ -1,0 +1,12 @@
+steps:
+- name: 'gcr.io/kaniko-project/executor:latest'
+  args:
+  - --destination=$_REGISTRY/$PROJECT_ID/$_TRAINER_NAME:$TAG_NAME
+  - --dockerfile=$_DOCKERFILE
+  - --cache=true
+  - --cache-ttl=168h
+substitutions:
+  _DOCKERFILE: Dockerfile
+  _REGISTRY: eu.gcr.io
+  _TRAINER_NAME: my_job
+timeout: 7200s
