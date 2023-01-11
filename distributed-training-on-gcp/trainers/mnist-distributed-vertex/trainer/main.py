@@ -201,6 +201,11 @@ def _get_args():
         type=float,
         help='learning rate for optimizer, default=.01')
     parser.add_argument(
+        '--long-runner',
+        default='False',
+        type=str,
+        help='long running job indicator, default=False')
+    parser.add_argument(
         '--verbosity',
         choices=['DEBUG', 'ERROR', 'FATAL', 'INFO', 'WARN'],
         default='DEBUG')

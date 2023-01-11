@@ -22,13 +22,11 @@ usage() {
 cat << EOF
 Usage: $0 -e <experiment> [-E <epochs>] -c <config> -j <jobdir> -r <region> [-p <project>] [-d <Dockerfile>] [-R <registry>] [-t] -s
 
-Bundles code in trainer/ folder as a container image and launches a Vertex AI training job with the container.
+Bundles code in trainer/ folder as a container image and launches a Vertex AI hyperparameter tuning job with the container.
 For the training job, the configuration is read from the provided config files.
         
 -e | --experiment       Experiment name which is used as container image name and training job name (Note: - is replaced by _).
--B | --batchsize        Batch size to be passed to the training program.
--E | --epochs           Number of epochs to train the model which can be a comma-delimited list.
--c | --config           Configuration file for the Vertex AI Platform Training job.
+-c | --config           Configuration file for the Cloud AI Platform Training job.
 -j | --jobdir           GCP bucket to exptect outputs & results from the training program.
 -r | --region           GCP region to launch training job in (Note: choose depending on which resources used in the config file).
 -p | --project          GCP project id to use for build and training job.
@@ -43,47 +41,38 @@ exit 1
 main() {
     echo "Launching experiment" $EXPERIMENT_NAME "..."
 
-    PROJECT_NBR=$(gcloud projects describe $PROJECT --format="value(projectNumber)")
     TIMESTAMP=$(date +%s)
     IMAGE_URI=$CONTAINER_REGISTRY/$PROJECT/$EXPERIMENT_NAME:$TIMESTAMP
-    JOB_BASE_NAME="${EXPERIMENT_NAME//-/_}_$TIMESTAMP"
+    JOB_NAME="${EXPERIMENT_NAME//-/_}_$TIMESTAMP"
     
     echo "Building trainer code" $EXPERIMENT_NAME:$TIMESTAMP "..."
     gcloud builds submit \
         --substitutions=_TRAINER_NAME=$EXPERIMENT_NAME,_REGISTRY=$CONTAINER_REGISTRY,_DOCKERFILE=$DOCKERFILE,TAG_NAME=$TIMESTAMP \
-        --project=$PROJECT --gcs-log-dir=$JOB_DIR/$JOB_BASE_NAME/build/
-    
-    
-
-    IFS=',' read -r -a epochs_ar <<< "$EPOCHS"
-    for curepochs in "${epochs_ar[@]}"
-    do
-        JOB_NAME="${EXPERIMENT_NAME//-/_}_E${curepochs}_${TIMESTAMP}"
+        --project=$PROJECT --gcs-log-dir=$JOB_DIR/$JOB_NAME/build/
         
-        if [ "$WITH_TENSORBOARD" = true ] ; then
-            echo "Creating tensorboard instance" $JOB_NAME "..."
-            gcloud ai tensorboards create --display-name=$JOB_NAME --project=$PROJECT --region=$REGION
-            TENSORBOARD=$(gcloud ai tensorboards list --region $REGION --filter=displayName=$JOB_NAME --format="value(name)")
-            python3 prepare-job-config.py --config $CONFIG \
-                --container-image-uri $IMAGE_URI --job-dir $JOB_DIR/$JOB_BASE_NAME/$JOB_NAME/ \
-                --num-epochs=$curepochs --batch-size=$BATCHSIZE \
-                --tensorboard $TENSORBOARD --out-config /tmp/$JOB_NAME.yaml
-        else
-            python3 prepare-job-config.py --config $CONFIG \
-                --container-image-uri $IMAGE_URI --job-dir $JOB_DIR/$JOB_BASE_NAME/$JOB_NAME/ \
-                --num-epochs=$curepochs --batch-size=$BATCHSIZE \
-                --out-config /tmp/$JOB_NAME.yaml
-        fi
 
-        echo "Launching job" $JOB_NAME "with output folder" $JOB_DIR "/" $JOB_BASE_NAME "/" $JOB_NAME "/..."
-        gcloud ai custom-jobs create --display-name $JOB_NAME \
-            --project=$PROJECT --region=$REGION \
-            --config=/tmp/$JOB_NAME.yaml --service-account=$SERVICE_ACCOUNT
-    done
+    if [ "$WITH_TENSORBOARD" = true ] ; then
+        echo "Creating tensorboard instance" $JOB_NAME "..."
+        gcloud ai tensorboards create --display-name=$JOB_NAME --project=$PROJECT --region=$REGION
+        TENSORBOARD=$(gcloud ai tensorboards list --region $REGION --filter=displayName=$JOB_NAME --format="value(name)")
+        python3 prepare-job-config.py --config $CONFIG \
+            --container-image-uri $IMAGE_URI --job-dir $JOB_DIR/$JOB_NAME/ \
+            --tensorboard $TENSORBOARD --out-config /tmp/$JOB_NAME.yaml
+    else
+        python3 prepare-job-config.py --config $CONFIG \
+            --container-image-uri $IMAGE_URI --job-dir $JOB_DIR/$JOB_NAME/ \
+            --out-config /tmp/$JOB_NAME.yaml
+    fi
+
+
+    echo "Launching job" $JOB_NAME "with output folder" $JOB_DIR "/" $JOB_NAME "/..."
+    gcloud ai hp-tuning-jobs create --display-name $JOB_NAME \
+        --project=$PROJECT --region=$REGION \
+        --config=/tmp/$JOB_NAME.yaml --service-account=$SERVICE_ACCOUNT \
+        --max-trial-count=30 --parallel-trial-count=3
+
 }
 
-BATCHSIZE=128
-EPOCHS=10
 PROJECT=$(gcloud config get-value project 2> /dev/null)
 DOCKERFILE="Dockerfile"
 CONTAINER_REGISTRY="eu.gcr.io"
@@ -99,14 +88,6 @@ do
     -e|--experiment)
         shift
         EXPERIMENT_NAME=$1
-        ;;
-    -B|--batchsize)
-        shift
-        BATCHSIZE=$1
-        ;;
-    -E|--epochs)
-        shift
-        EPOCHS=$1
         ;;
     -c|--config)
         shift

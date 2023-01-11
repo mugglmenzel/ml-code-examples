@@ -1,0 +1,28 @@
+studySpec:
+  metrics:
+  - metricId: loss
+    goal: MINIMIZE
+  parameters:
+  - parameterId: learning-rate
+    doubleValueSpec:
+      minValue: 0.0001
+      maxValue: 0.01
+  - parameterId: batch-size
+    discreteValueSpec:
+      values:
+      - 64
+      - 128
+  - parameterId: num-epochs
+    discreteValueSpec:
+      values:
+      - 10
+      - 20
+  algorithm: ALGORITHM_UNSPECIFIED
+trialJobSpec:
+  workerPoolSpecs:
+  - machineSpec:
+      machineType: n1-standard-16
+      acceleratorType: NVIDIA_TESLA_P4
+      acceleratorCount: 2
+    replicaCount: 1
+

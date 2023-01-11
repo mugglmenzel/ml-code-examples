@@ -1,0 +1,36 @@
+studySpec:
+  metrics:
+  - metricId: loss
+    goal: MINIMIZE
+  parameters:
+  - parameterId: learning-rate
+    doubleValueSpec:
+      minValue: 0.0001
+      maxValue: 0.01
+  - parameterId: batch-size
+    discreteValueSpec:
+      values:
+      - 32
+      - 64
+      - 128
+  - parameterId: long-runner
+    categoricalValueSpec:
+      values:
+      - 'True'
+      - 'False'
+    conditionalParameterSpecs:
+      - parameterSpec:
+          parameterId: num-epochs
+          integerValueSpec:
+            minValue: 10
+            maxValue: 100
+        parentCategoricalValues:
+          values:
+          - 'True'
+  algorithm: ALGORITHM_UNSPECIFIED
+trialJobSpec:
+  workerPoolSpecs:
+  - machineSpec:
+      machineType: n1-standard-16
+    replicaCount: 1
+
