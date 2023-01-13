@@ -20,11 +20,13 @@ cd "$(dirname "$0")"
 
 usage() { 
 cat << EOF
-Usage: $0 -e <experiment>
+Usage: $0 -e <experiment> [-p <project>] [-w]
 
-Watches a Cloud AI Platform training job.
+Watches a Vertex AI training job.
         
--e | --experiment      Experiment name which is used as container image name and training job name (Note: - is replaced by _).
+-e      Experiment name which is used as container image name and training job name (Note: - is replaced by _).
+-p      GCP project id to use for build and training job.
+-w      Indicate if you want to refresh results every 5 sec.
 EOF
 exit 1
 }
@@ -46,10 +48,10 @@ main() {
 }
 
 
-export PROJECT=$(gcloud config get-value project 2> /dev/null)
-export WATCH=false
+PROJECT=$(gcloud config get-value project 2> /dev/null)
+WATCH=false
 
-options=$(getopt -l "experiment:,project:,watch" -o "e:p:w" -a -- "$@")
+options=$(getopt e:p:w "$@")
 eval set -- "$options"
 
 while true
@@ -57,14 +59,14 @@ do
 case $1 in
 -e|--experiment)
     shift
-    export EXPERIMENT_NAME=$1
+    EXPERIMENT_NAME=$1
     ;;
 -p|--project) 
     shift
-    export PROJECT=$1
+    PROJECT=$1
     ;;
 -w|--watch) 
-    export WATCH=true
+    WATCH=true
     ;;
 --)
     shift

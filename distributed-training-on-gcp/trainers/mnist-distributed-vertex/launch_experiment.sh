@@ -20,22 +20,22 @@ cd "$(dirname "$0")"
 
 usage() { 
 cat << EOF
-Usage: $0 -e <experiment> [-E <epochs>] -c <config> -j <jobdir> -r <region> [-p <project>] [-d <Dockerfile>] [-R <registry>] [-t] -s
+Usage: $0 -e <experiment> [-E <epochs>] -c <config> -j <jobdir> -r <region> [-p <project>] [-d <Dockerfile>] [-R <registry>] [-t] [-s]
 
 Bundles code in trainer/ folder as a container image and launches a Vertex AI training job with the container.
 For the training job, the configuration is read from the provided config files.
         
--e | --experiment       Experiment name which is used as container image name and training job name (Note: - is replaced by _).
--B | --batchsize        Batch size to be passed to the training program.
--E | --epochs           Number of epochs to train the model which can be a comma-delimited list.
--c | --config           Configuration file for the Vertex AI Platform Training job.
--j | --jobdir           GCP bucket to exptect outputs & results from the training program.
--r | --region           GCP region to launch training job in (Note: choose depending on which resources used in the config file).
--p | --project          GCP project id to use for build and training job.
--d | --dockerfile       Dockerfile to build the container image.
--R | --registry         Container registry to push the container image to (Note: Cloud Build needs permissions).
--t | --tensorboard      Indicate if you want metrics exported to a Tensorboard instance.
--s | --service-account  Service account to launch workers with.
+-e      Experiment name which is used as container image name and training job name (Note: - is replaced by _).
+-B      Batch size to be passed to the training program.
+-E      Number of epochs to train the model which can be a comma-delimited list.
+-c      Configuration file for the Vertex AI Platform Training job.
+-j      GCS bucket to expect outputs & results from the training program.
+-r      GCP region to launch training job in (Note: choose depending on which resources used in the config file).
+-p      GCP project id to use for build and training job.
+-d      Dockerfile to build the container image.
+-R      Container registry to push the container image to (Note: Cloud Build needs permissions).
+-t      Indicate if you want metrics exported to a Tensorboard instance.
+-s      Service account to launch workers with.
 EOF
 exit 1
 }
@@ -75,10 +75,17 @@ main() {
                 --out-config /tmp/$JOB_NAME.yaml
         fi
 
+        
+        if [ -z "${SERVICE_ACCOUNT}" ]; then
+            SA_ARG=""
+        else
+            SA_ARG="--service-account=$SERVICE_ACCOUNT"
+        fi
+
         echo "Launching job" $JOB_NAME "with output folder" $JOB_DIR "/" $JOB_BASE_NAME "/" $JOB_NAME "/..."
         gcloud ai custom-jobs create --display-name $JOB_NAME \
             --project=$PROJECT --region=$REGION \
-            --config=/tmp/$JOB_NAME.yaml --service-account=$SERVICE_ACCOUNT
+            --config=/tmp/$JOB_NAME.yaml $SA_ARG
     done
 }
 
@@ -88,7 +95,6 @@ PROJECT=$(gcloud config get-value project 2> /dev/null)
 DOCKERFILE="Dockerfile"
 CONTAINER_REGISTRY="eu.gcr.io"
 WITH_TENSORBOARD=false
-SERVICE_ACCOUNT=$(gcloud config get-value account 2> /dev/null)
 
 options=$(getopt e:B:E:c:j:r:p:d:R:ts: "$@")
 eval set -- "$options"

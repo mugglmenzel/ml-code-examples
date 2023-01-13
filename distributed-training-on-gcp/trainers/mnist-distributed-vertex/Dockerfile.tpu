@@ -11,10 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+FROM python:3.8-slim
 
-FROM tensorflow/tensorflow:latest
+RUN apt update && apt install -y wget
 
-RUN pip install cloud-tpu-client cloudml-hypertune tensorflow-datasets
+RUN wget -q https://storage.googleapis.com/cloud-tpu-tpuvm-artifacts/tensorflow/tf-2.10.0/tensorflow-2.10.0-cp38-cp38-linux_x86_64.whl
+RUN pip3 install tensorflow-2.10.0-cp38-cp38-linux_x86_64.whl
+RUN rm tensorflow-2.10.0-cp38-cp38-linux_x86_64.whl
+
+RUN wget -q https://storage.googleapis.com/cloud-tpu-tpuvm-artifacts/libtpu/1.4.0/libtpu.so -O /lib/libtpu.so
+RUN chmod 777 /lib/libtpu.so
+
+RUN pip install cloudml-hypertune tensorflow-datasets
 
 ENV PYTHONUNBUFFERED="true"
 
